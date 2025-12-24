@@ -12,13 +12,6 @@ export default function PhysioKGApp() {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Neo4j connection configuration
-  const NEO4J_CONFIG = {
-    uri: 'neo4j+s://your-instance.databases.neo4j.io',
-    username: 'neo4j',
-    password: 'your-password-here'
-  };
-
   // Fetch all conditions on mount
   useEffect(() => {
     fetchConditions();
@@ -27,23 +20,17 @@ export default function PhysioKGApp() {
   const fetchConditions = async () => {
     try {
       setLoading(true);
-      // Mock data for demo - replace with actual Neo4j query
-      const mockConditions = [
-        'Rotator Cuff Tendinopathy',
-        'Anterior Cruciate Ligament Injury',
-        'Lower Back Pain',
-        'Neck Pain',
-        'Patellofemoral Pain Syndrome',
-        'Lateral Epicondylalgia',
-        'Achilles Tendinopathy',
-        'Frozen Shoulder',
-        'Plantar Fasciitis',
-        'Hip Osteoarthritis'
-      ];
-      setConditions(mockConditions);
+      const response = await fetch('/api/conditions');
+      const data = await response.json();
+      
+      if (response.ok) {
+        setConditions(data.conditions);
+      } else {
+        setError(data.error || 'Failed to load conditions');
+      }
       setLoading(false);
     } catch (err) {
-      setError('Failed to load conditions');
+      setError('Failed to connect to server');
       setLoading(false);
     }
   };
@@ -55,53 +42,17 @@ export default function PhysioKGApp() {
       setLoading(true);
       setError(null);
       
-      // Mock reasoning data - replace with actual Neo4j query
-      const mockReasoning = {
-        condition: selectedCondition,
-        impairments: [
-          { name: 'Reduced range of motion', severity: 'Moderate', evidence: 'Lewis et al. 2015' },
-          { name: 'Muscle weakness', severity: 'Mild to Moderate', evidence: 'Smith & Jones 2018' },
-          { name: 'Pain on loading', severity: 'Variable', evidence: 'Clinical guideline 2020' }
-        ],
-        assessments: [
-          { name: 'Range of Motion Assessment', type: 'Objective', priority: 'High' },
-          { name: 'Manual Muscle Testing', type: 'Objective', priority: 'High' },
-          { name: 'Pain Provocation Tests', type: 'Objective', priority: 'Medium' },
-          { name: 'Functional Movement Screen', type: 'Objective', priority: 'Medium' }
-        ],
-        interventions: [
-          { name: 'Load management education', category: 'Education', evidence: 'Grade A' },
-          { name: 'Progressive strengthening', category: 'Exercise', evidence: 'Grade A' },
-          { name: 'Manual therapy', category: 'Hands-on', evidence: 'Grade B' }
-        ],
-        exercises: [
-          { name: 'Isometric holds', dosage: '5x45s, 2x/day', phase: 'Early' },
-          { name: 'Eccentric loading', dosage: '3x15, daily', phase: 'Mid' },
-          { name: 'Plyometric drills', dosage: '3x10, 3x/week', phase: 'Late' }
-        ],
-        redFlags: [
-          { flag: 'Sudden onset weakness', action: 'Immediate referral', urgency: 'High' },
-          { flag: 'Night pain with weight loss', action: 'Medical screening', urgency: 'High' },
-          { flag: 'Trauma with deformity', action: 'Imaging required', urgency: 'Medium' }
-        ],
-        medications: [
-          { name: 'NSAIDs', indication: 'Pain management', caution: 'Short-term use only' },
-          { name: 'Paracetamol', indication: 'Analgesia', caution: 'Limited efficacy' }
-        ],
-        outcomeMeasures: [
-          { name: 'DASH Score', type: 'Patient-reported', frequency: 'Baseline & 6-week' },
-          { name: 'Pain VAS', type: 'Patient-reported', frequency: 'Weekly' },
-          { name: 'ROM measures', type: 'Objective', frequency: 'Bi-weekly' }
-        ]
-      };
-
-      setTimeout(() => {
-        setReasoning(mockReasoning);
-        setLoading(false);
-      }, 800);
+      const response = await fetch(`/api/reasoning/${encodeURIComponent(selectedCondition)}`);
+      const data = await response.json();
       
+      if (response.ok) {
+        setReasoning(data);
+      } else {
+        setError(data.error || 'Failed to generate reasoning');
+      }
+      setLoading(false);
     } catch (err) {
-      setError('Failed to generate reasoning');
+      setError('Failed to connect to server');
       setLoading(false);
     }
   };
@@ -202,119 +153,139 @@ export default function PhysioKGApp() {
             </div>
 
             {/* Red Flags - Priority placement */}
-            <SectionCard title="Red Flags" icon={AlertCircle} color="text-red-600">
-              <div className="space-y-3">
-                {reasoning.redFlags.map((flag, idx) => (
-                  <div key={idx} className="bg-red-50 border border-red-200 rounded p-3">
-                    <div className="flex justify-between items-start mb-1">
-                      <p className="font-medium text-gray-900">{flag.flag}</p>
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        flag.urgency === 'High' ? 'bg-red-200 text-red-800' : 'bg-yellow-200 text-yellow-800'
-                      }`}>
-                        {flag.urgency}
-                      </span>
+            {reasoning.redFlags && reasoning.redFlags.length > 0 && (
+              <SectionCard title="Red Flags" icon={AlertCircle} color="text-red-600">
+                <div className="space-y-3">
+                  {reasoning.redFlags.map((flag, idx) => (
+                    <div key={idx} className="bg-red-50 border border-red-200 rounded p-3">
+                      <div className="flex justify-between items-start mb-1">
+                        <p className="font-medium text-gray-900">{flag.flag}</p>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          flag.urgency === 'High' ? 'bg-red-200 text-red-800' : 'bg-yellow-200 text-yellow-800'
+                        }`}>
+                          {flag.urgency}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700">Action: {flag.action}</p>
                     </div>
-                    <p className="text-sm text-gray-700">Action: {flag.action}</p>
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
 
             {/* Impairments */}
-            <SectionCard title="Common Impairments" icon={Activity} color="text-purple-600">
-              <div className="space-y-2">
-                {reasoning.impairments.map((imp, idx) => (
-                  <div key={idx} className="border-l-4 border-purple-300 pl-3 py-2">
-                    <div className="flex justify-between items-start">
-                      <p className="font-medium text-gray-900">{imp.name}</p>
-                      <span className="text-xs text-gray-500">{imp.severity}</span>
+            {reasoning.impairments && reasoning.impairments.length > 0 && (
+              <SectionCard title="Common Impairments" icon={Activity} color="text-purple-600">
+                <div className="space-y-2">
+                  {reasoning.impairments.map((imp, idx) => (
+                    <div key={idx} className="border-l-4 border-purple-300 pl-3 py-2">
+                      <div className="flex justify-between items-start">
+                        <p className="font-medium text-gray-900">{imp.name}</p>
+                        {imp.severity && <span className="text-xs text-gray-500">{imp.severity}</span>}
+                      </div>
+                      {imp.evidence && <p className="text-sm text-gray-600 italic">{imp.evidence}</p>}
                     </div>
-                    <p className="text-sm text-gray-600 italic">{imp.evidence}</p>
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
 
             {/* Assessments */}
-            <SectionCard title="Assessment Tools" icon={FileText} color="text-blue-600">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {reasoning.assessments.map((assess, idx) => (
-                  <div key={idx} className="border border-gray-200 rounded p-3">
-                    <p className="font-medium text-gray-900">{assess.name}</p>
-                    <div className="flex justify-between mt-1">
-                      <span className="text-xs text-gray-500">{assess.type}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded ${
-                        assess.priority === 'High' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {assess.priority}
-                      </span>
+            {reasoning.assessments && reasoning.assessments.length > 0 && (
+              <SectionCard title="Assessment Tools" icon={FileText} color="text-blue-600">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {reasoning.assessments.map((assess, idx) => (
+                    <div key={idx} className="border border-gray-200 rounded p-3">
+                      <p className="font-medium text-gray-900">{assess.name}</p>
+                      <div className="flex justify-between mt-1">
+                        {assess.type && <span className="text-xs text-gray-500">{assess.type}</span>}
+                        {assess.priority && (
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            assess.priority === 'High' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {assess.priority}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
 
             {/* Interventions */}
-            <SectionCard title="Interventions" icon={Target} color="text-green-600">
-              <div className="space-y-2">
-                {reasoning.interventions.map((int, idx) => (
-                  <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                    <div>
-                      <p className="font-medium text-gray-900">{int.name}</p>
-                      <p className="text-sm text-gray-600">{int.category}</p>
+            {reasoning.interventions && reasoning.interventions.length > 0 && (
+              <SectionCard title="Interventions" icon={Target} color="text-green-600">
+                <div className="space-y-2">
+                  {reasoning.interventions.map((int, idx) => (
+                    <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                      <div>
+                        <p className="font-medium text-gray-900">{int.name}</p>
+                        {int.category && <p className="text-sm text-gray-600">{int.category}</p>}
+                      </div>
+                      {int.evidence && (
+                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                          {int.evidence}
+                        </span>
+                      )}
                     </div>
-                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                      {int.evidence}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
 
             {/* Exercises */}
-            <SectionCard title="Exercise Prescription" icon={Dumbbell} color="text-orange-600">
-              <div className="space-y-3">
-                {reasoning.exercises.map((ex, idx) => (
-                  <div key={idx} className="border border-gray-200 rounded p-3">
-                    <div className="flex justify-between items-start mb-1">
-                      <p className="font-medium text-gray-900">{ex.name}</p>
-                      <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
-                        {ex.phase}
-                      </span>
+            {reasoning.exercises && reasoning.exercises.length > 0 && (
+              <SectionCard title="Exercise Prescription" icon={Dumbbell} color="text-orange-600">
+                <div className="space-y-3">
+                  {reasoning.exercises.map((ex, idx) => (
+                    <div key={idx} className="border border-gray-200 rounded p-3">
+                      <div className="flex justify-between items-start mb-1">
+                        <p className="font-medium text-gray-900">{ex.name}</p>
+                        {ex.phase && (
+                          <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                            {ex.phase}
+                          </span>
+                        )}
+                      </div>
+                      {ex.dosage && <p className="text-sm text-gray-600">{ex.dosage}</p>}
                     </div>
-                    <p className="text-sm text-gray-600">{ex.dosage}</p>
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
 
             {/* Medications */}
-            <SectionCard title="Medications" icon={Pill} color="text-indigo-600">
-              <div className="space-y-2">
-                {reasoning.medications.map((med, idx) => (
-                  <div key={idx} className="p-3 bg-indigo-50 rounded">
-                    <p className="font-medium text-gray-900">{med.name}</p>
-                    <p className="text-sm text-gray-700">{med.indication}</p>
-                    <p className="text-xs text-indigo-700 mt-1">⚠️ {med.caution}</p>
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
+            {reasoning.medications && reasoning.medications.length > 0 && (
+              <SectionCard title="Medications" icon={Pill} color="text-indigo-600">
+                <div className="space-y-2">
+                  {reasoning.medications.map((med, idx) => (
+                    <div key={idx} className="p-3 bg-indigo-50 rounded">
+                      <p className="font-medium text-gray-900">{med.name}</p>
+                      {med.indication && <p className="text-sm text-gray-700">{med.indication}</p>}
+                      {med.caution && <p className="text-xs text-indigo-700 mt-1">⚠️ {med.caution}</p>}
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
 
             {/* Outcome Measures */}
-            <SectionCard title="Outcome Measures" icon={TrendingUp} color="text-teal-600">
-              <div className="space-y-2">
-                {reasoning.outcomeMeasures.map((measure, idx) => (
-                  <div key={idx} className="flex justify-between items-center p-3 border border-gray-200 rounded">
-                    <div>
-                      <p className="font-medium text-gray-900">{measure.name}</p>
-                      <p className="text-sm text-gray-600">{measure.type}</p>
+            {reasoning.outcomeMeasures && reasoning.outcomeMeasures.length > 0 && (
+              <SectionCard title="Outcome Measures" icon={TrendingUp} color="text-teal-600">
+                <div className="space-y-2">
+                  {reasoning.outcomeMeasures.map((measure, idx) => (
+                    <div key={idx} className="flex justify-between items-center p-3 border border-gray-200 rounded">
+                      <div>
+                        <p className="font-medium text-gray-900">{measure.name}</p>
+                        {measure.type && <p className="text-sm text-gray-600">{measure.type}</p>}
+                      </div>
+                      {measure.frequency && <p className="text-xs text-gray-500">{measure.frequency}</p>}
                     </div>
-                    <p className="text-xs text-gray-500">{measure.frequency}</p>
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
           </div>
         )}
 
